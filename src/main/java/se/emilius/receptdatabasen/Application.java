@@ -6,7 +6,7 @@ import java.util.Scanner;
 public class Application {
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws SQLException {
 
         connect();
         boolean quit = false;
@@ -16,15 +16,18 @@ public class Application {
             scanner.nextLine();
 
             switch (action) {
-                case 5 -> {
+                case 7 -> {
                     System.out.println(" Avslutar!");
                     quit = true;
                 }
                 case 1 -> addRecipe();
-                case 2 -> deleteRecipe();
+                case 2 -> updateRecipe();
                 case 3 -> showAllRecipe();
-//                case 4 ->
-//                case 5 -> printActions();
+                case 4 -> deleteRecipe();
+                case 5 -> countRecipes();
+                case 6 -> searchRecipe();
+
+
             }
         }
 
@@ -53,7 +56,9 @@ public class Application {
         System.out.println("2. Uppdatera ett recept");
         System.out.println("3. Visa alla recept");
         System.out.println("4. Ta bort ett recept");
-        System.out.println("5. Avsluta programmet");
+        System.out.println("5. Visa antal recept");
+        System.out.println("6. Sök efter recept");
+        System.out.println("7. Avsluta programmet");
     }
 
     private static void addRecipe() {
@@ -110,8 +115,6 @@ public class Application {
                 }
             }
 
-            //hello
-            //insert into ingrediens....
         } while (!ingrediensNamn.isEmpty());
 
         System.out.println("Sparat recept!");
@@ -161,35 +164,146 @@ public class Application {
 
         if (input.isEmpty()) {
             return;
+        }
+        Recipe recipe = fetchRecipe(input);
+        System.out.println(recipe.getName());
+        System.out.println("Ingredienser: ");
+        for (Ingredient ingredient : recipe.getIngredients()) {
+            System.out.println(" * " + ingredient.getName() + ", " + ingredient.getQuantity());
+        }
+        System.out.println("Instruktion: ");
+        System.out.println(recipe.getInstructions());
+
+        scanner.nextLine();
+    }
+
+
+    private static void updateRecipe() {
+        System.out.println("Välj receptet du vill ändra på genom att skriva in receptID");
+        String receptId = scanner.nextLine();
+
+        Recipe recipe = fetchRecipe(receptId);
+
+
+        System.out.println(recipe.getName());
+        System.out.println("Instruktion: ");
+        System.out.println(recipe.getInstructions());
+
+
+        System.out.println("Mata in den nya instruktionen: ");
+        String instruction = scanner.nextLine();
+        update(Integer.parseInt(receptId), instruction);
+        scanner.nextLine();
+
+
+    }
+
+    private static void update(int id, String instruction) {
+        String sql = "UPDATE recept SET instruktion = ? WHERE id = ? ";
+
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, instruction);
+            pstmt.setInt(2, id);
+            pstmt.executeUpdate();
+            System.out.println("Receptet har uppdaterats!");
+
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+
+    private static Recipe fetchRecipe(String recipeID) {
+
+        Recipe recipe = new Recipe();
+        int recipeId = Integer.parseInt(recipeID);
+        String recipeSql = "SELECT * FROM recept WHERE id = ?";
+        try {
+            Connection conn = connect();
+            PreparedStatement stmt = conn.prepareStatement(recipeSql);
+            stmt.setInt(1, recipeId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                recipe.setId(recipeId);
+                recipe.setName(rs.getString("namn"));
+                recipe.setInstructions(rs.getString("instruktion"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        String ingredientSql = "SELECT ingrediens.receptid, ingrediens.namn, ingrediens.kvantitet FROM ingrediens " +
+                "JOIN recept ON recept.id = ingrediens.receptid " +
+                "WHERE recept.id = ?";
+        try {
+            Connection conn = connect();
+            PreparedStatement stmt = conn.prepareStatement(ingredientSql);
+            stmt.setInt(1, recipeId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Ingredient ingredient = new Ingredient();
+                ingredient.setRecipeId(recipeId);
+                ingredient.setName(rs.getString("namn"));
+                ingredient.setQuantity(rs.getString("kvantitet"));
+                recipe.getIngredients().add(ingredient);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+
+        }
+        return recipe;
+
+    }
+
+
+    private static void countRecipes() throws SQLException {
+
+        Connection conn = connect();
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery("SELECT COUNT (*)AS numberOfRecipes FROM recept");
+        rs.next();
+        Integer numberOfRecipes = rs.getInt("numberOfRecipes");
+        System.out.println("Det finns " + numberOfRecipes + " recept!");
+        scanner.nextLine();
+    }
+
+
+    private static void searchRecipe() {
+
+
+        System.out.println("Sök efter ett recept");
+        String recipeName = scanner.nextLine();
+
+        if (recipeName.isEmpty()) {
+            return;
         } else {
             Recipe recipe = new Recipe();
-            int recipeId = Integer.parseInt(input);
-            String recipeSql = "SELECT * FROM recept WHERE id = ?";
+            String recipeSql = "SELECT * FROM recept WHERE lower(namn) LIKE ?";
             try {
                 Connection conn = connect();
                 PreparedStatement stmt = conn.prepareStatement(recipeSql);
-                stmt.setInt(1, recipeId);
+                stmt.setString(1, "%" + recipeName.toLowerCase() + "%");
                 ResultSet rs = stmt.executeQuery();
                 while (rs.next()) {
-                    recipe.setId(recipeId);
+                    recipe.setId(rs.getInt("id"));
                     recipe.setName(rs.getString("namn"));
                     recipe.setInstructions(rs.getString("instruktion"));
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
-            }<<
-            // hämta upp ingredienser till receptet
+            }
             String ingredientSql = "SELECT ingrediens.receptid, ingrediens.namn, ingrediens.kvantitet FROM ingrediens " +
                     "JOIN recept ON recept.id = ingrediens.receptid " +
                     "WHERE recept.id = ?";
             try {
                 Connection conn = connect();
                 PreparedStatement stmt = conn.prepareStatement(ingredientSql);
-                stmt.setInt(1, recipeId);
+                stmt.setInt(1, recipe.getId());
                 ResultSet rs = stmt.executeQuery();
                 while (rs.next()) {
                     Ingredient ingredient = new Ingredient();
-                    ingredient.setRecipeId(recipeId);
+                    ingredient.setRecipeId(recipe.getId());
                     ingredient.setName(rs.getString("namn"));
                     ingredient.setQuantity(rs.getString("kvantitet"));
                     recipe.getIngredients().add(ingredient);
@@ -198,8 +312,6 @@ public class Application {
                 e.printStackTrace();
 
             }
-
-
             System.out.println(recipe.getName());
             System.out.println("Ingredienser: ");
             for (Ingredient ingredient : recipe.getIngredients()) {
@@ -208,26 +320,12 @@ public class Application {
             System.out.println("Instruktion: ");
             System.out.println(recipe.getInstructions());
 
-            scanner.nextLine();
         }
-    }
 
-    private static void changeInstruction() {
 
     }
-
-//    private static ResultSet select(String sql) {
-//        try {
-//            Connection conn = connect();
-//            Statement stmt = conn.createStatement();
-//            ResultSet rs = stmt.executeQuery(sql);
-//            return rs;
-//        } catch (SQLException e) {
-//            System.out.println(e.getMessage());
-//        }
-//        return null;
-//    }
-//
 }
+
+
 
 
