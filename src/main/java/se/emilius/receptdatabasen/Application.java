@@ -73,7 +73,6 @@ public class Application {
         System.out.println("Beskriv hur man lagar receptet: ");
         String instruktion = scanner.nextLine();
         int recipeId = 0;
-        //insert into recept...
         String recipeSql = "INSERT INTO recept(namn, instruktion) VALUES(?, ?)";
 
         try {
@@ -126,18 +125,19 @@ public class Application {
         System.out.println("Skriv in id på det receptet som du vill ta bort: ");
         int inputRecipeId = scanner.nextInt();
         delete(inputRecipeId);
-        scanner.nextInt();
+        scanner.nextLine();
     }
 
     private static void delete(int id) {
-        String sql = "DELETE FROM recept WHERE recipeid = ?";
+        String sql = "DELETE FROM recept WHERE id = ?";
 
         try (Connection conn = connect();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, id);
             pstmt.executeUpdate();
-            System.out.println("Receptet har tagits bort");
+            System.out.println("Receptet har tagits bort!");
+
 
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -199,7 +199,7 @@ public class Application {
     }
 
     private static void update(int id, String instruction) {
-        String sql = "UPDATE recept SET instruktion = ? WHERE id = ? ";
+        String sql = "UPDATE recept SET instruktion = ? WHERE id = ?";
 
         try (Connection conn = connect();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -233,8 +233,8 @@ public class Application {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        String ingredientSql = "SELECT ingrediens.receptid, ingrediens.namn, ingrediens.kvantitet FROM ingrediens " +
-                "JOIN recept ON recept.id = ingrediens.receptid " +
+        String ingredientSql = "SELECT ingrediens.receptid, ingrediens.namn, ingrediens.kvantitet FROM ingrediens" +
+                "JOIN recept ON recept.id = ingrediens.receptid" +
                 "WHERE recept.id = ?";
         try {
             Connection conn = connect();
@@ -293,8 +293,8 @@ public class Application {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
-            String ingredientSql = "SELECT ingrediens.receptid, ingrediens.namn, ingrediens.kvantitet FROM ingrediens " +
-                    "JOIN recept ON recept.id = ingrediens.receptid " +
+            String ingredientSql = "SELECT ingrediens.receptid, ingrediens.namn, ingrediens.kvantitet FROM ingrediens" +
+                    "JOIN recept ON recept.id = ingrediens.receptid" +
                     "WHERE recept.id = ?";
             try {
                 Connection conn = connect();
